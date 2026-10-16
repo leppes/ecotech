@@ -19,5 +19,8 @@ class Departamento:
     def nombre(self, valor):
         self._nombre = validar_texto(valor, "nombre del departamento")
 
+    def __str__(self):
+        return f"[{self.id}] {self.nombre}"
+
     def __repr__(self):
         return f"Departamento(id={self.id}, nombre={self.nombre!r})"

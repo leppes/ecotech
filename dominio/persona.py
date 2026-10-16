@@ -19,5 +19,8 @@ class Persona:
     def nombre(self, valor):
         self._nombre = validar_texto(valor, "nombre")
 
+    def __str__(self):
+        return f"{self.rut} · {self.nombre}"
+
     def __repr__(self):
         return f"Persona(rut={self.rut!r}, nombre={self.nombre!r})"

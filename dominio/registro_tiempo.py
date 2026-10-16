@@ -1,7 +1,6 @@
 from datetime import date
 
-from dominio.excepciones import HorasInvalidas
-from dominio.validaciones import validar_fecha, validar_id, validar_rut
+from dominio.validaciones import validar_fecha, validar_horas, validar_id, validar_rut
 
 
 class RegistroTiempo:
@@ -37,9 +36,7 @@ class RegistroTiempo:
 
     @horas.setter
     def horas(self, valor):
-        if not isinstance(valor, (int, float)) or not 0 < valor <= 24:
-            raise HorasInvalidas(f"Las horas deben ser un número mayor que 0 y hasta 24, no {valor!r}")
-        self._horas = valor
+        self._horas = validar_horas(valor)
 
     @property
     def fecha(self):
@@ -48,6 +45,10 @@ class RegistroTiempo:
     @fecha.setter
     def fecha(self, valor):
         self._fecha = validar_fecha(valor, "fecha")
+
+    def __str__(self):
+        return (f"[{self.id}] {self.fecha:%d-%m-%Y} · empleado {self.empleado_rut} · "
+                f"proyecto {self.proyecto_id} · {self.horas} h")
 
     def __repr__(self):
         return (f"RegistroTiempo(id={self.id}, empleado_rut={self.empleado_rut!r}, "

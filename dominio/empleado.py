@@ -1,8 +1,7 @@
 from datetime import date
 
-from dominio.excepciones import SueldoInvalido
 from dominio.persona import Persona
-from dominio.validaciones import validar_fecha, validar_id
+from dominio.validaciones import validar_fecha, validar_id, validar_sueldo
 
 
 class Empleado(Persona):
@@ -28,9 +27,7 @@ class Empleado(Persona):
 
     @sueldo_base.setter
     def sueldo_base(self, valor):
-        if not isinstance(valor, int) or valor < 0:
-            raise SueldoInvalido(f"El sueldo base debe ser un entero mayor o igual a 0, no {valor!r}")
-        self._sueldo_base = valor
+        self._sueldo_base = validar_sueldo(valor)
 
     @property
     def departamento_id(self):
@@ -40,6 +37,12 @@ class Empleado(Persona):
     def departamento_id(self, valor):
         # Opcional: un empleado puede no tener departamento asignado todavía.
         self._departamento_id = None if valor is None else validar_id(valor, "departamento_id")
+
+    def __str__(self):
+        # Reutiliza cómo se muestra una Persona y le agrega lo propio del empleado.
+        sueldo = f"{self.sueldo_base:,}".replace(",", ".")
+        return (f"{super().__str__()} · ingreso {self.fecha_ingreso:%d-%m-%Y} · "
+                f"sueldo ${sueldo} · departamento {self.departamento_id or '-'}")
 
     def __repr__(self):
         return (f"Empleado(rut={self.rut!r}, nombre={self.nombre!r}, "

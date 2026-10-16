@@ -46,3 +46,48 @@ Puntos que conviene evaluar antes de decidir:
   lectura), en vez de modificar el objeto recibido.
 - La validación del dígito verificador obliga a usar RUT reales en las pruebas
   (por eso cambió `12345678-9` por `12345678-5` en `main.py`).
+
+### 2026-10-16 · Claude Code · Interfaz de usuario según la rúbrica
+
+**Prompt:** «que mas falta», y después las imágenes de los criterios de
+calificación de la rúbrica UA2.
+
+**Respuesta (resumen de lo que propuso):**
+
+1. Una aplicación con menú por consola (`app.py`, `interfaz/`), porque el
+   criterio 2.1.4.G.14 pide validar entradas del usuario y `main.py` es solo una demo.
+2. `pedir()` vuelve a preguntar hasta recibir un dato válido; los errores del
+   dominio y de la base se informan y se vuelve al menú; Ctrl+C sale ordenadamente.
+3. Las reglas de sueldo y horas pasaron a `validaciones.py` para que el dominio
+   y el menú usen la misma.
+4. Un solo `MenuCatalogo` para departamentos y proyectos; `__str__` en el dominio.
+5. `DB_MOTOR` ahora se valida (antes se ignoraba).
+6. `docs/criterios.md`: dónde está la evidencia de cada criterio.
+
+**Decisión del equipo:** *(completar por el equipo)*
+
+Puntos que conviene evaluar antes de decidir:
+
+- Un error que solo detecta la base (RUT repetido, departamento inexistente)
+  aparece después de llenar todo el formulario, y hay que empezar de nuevo.
+  Se podría consultar antes, pero igual habría que capturar el error de la base,
+  porque entre la consulta y el guardado otro usuario puede cambiar los datos.
+- Al actualizar un empleado, Enter conserva el departamento; no hay forma de
+  dejarlo «sin departamento» desde el menú.
+
+## Fragmentos generados con IA (criterio I.19)
+
+Generados con Claude Code en las dos sesiones del 2026-10-16:
+
+| Archivo | Qué se generó |
+|---|---|
+| `dominio/excepciones.py`, `dominio/validaciones.py` | Archivos completos |
+| `dominio/persona.py`, `empleado.py`, `departamento.py`, `proyecto.py`, `registro_tiempo.py` | Propiedades con validación, `__str__` (los `__init__` y `__repr__` son del equipo, adaptados) |
+| `infraestructura/conexion.py` | `with conn`, captura de `OperationalError`, `probar_conexion()`, `es_duplicado()`, `es_llave_foranea()`, validación de `DB_MOTOR` |
+| `infraestructura/*_repositorio.py` | Los bloques `try/except sqlite3.IntegrityError`. Las consultas SQL y los mappers son del equipo (C08) |
+| `interfaz/`, `app.py` | Archivos completos |
+| `main.py` | Secciones «Prueba de conexión», «Encapsulamiento», «Errores de la base», «Transacción» y la función `debe_fallar` |
+| `requirements.txt`, `.env.example`, `docs/criterios.md` | Archivos completos |
+| `README.md` | Secciones nuevas de los pasos 1-3, manejo de errores, validación de entradas y transacciones |
+
+*(El equipo debe agregar aquí cualquier otro uso de IA, por ejemplo en la C07 y la C08.)*

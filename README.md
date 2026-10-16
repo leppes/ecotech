@@ -12,10 +12,15 @@ python -m venv .venv
 .venv\Scripts\activate            # Windows  (Mac/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
 copy .env.example .env            # (Mac/Linux: cp) y completar DB_MOTOR=sqlite, DB_NOMBRE=ecotech.db
-python main.py
+python app.py                     # la aplicación: menú por consola
+python main.py                    # la demo automática con todas las comprobaciones
 ```
 
-`main.py` hace la prueba de conexión, crea las tablas (si no existen), vacía los
+`app.py` es la **aplicación**: hace la prueba de conexión, crea las tablas si no
+existen y abre un menú por consola con el CRUD de empleados, departamentos,
+proyectos y registro de horas.
+
+`main.py` es la **demo**: hace la prueba de conexión, crea las tablas (si no existen), vacía los
 datos, recorre el CRUD de las cuatro entidades, muestra cómo los objetos rechazan
 datos inválidos, cómo se traducen los errores de la base, comprueba el rollback de
 las transacciones y las decisiones de borrado, y corre la prueba de inyección.
@@ -31,7 +36,8 @@ Cada comprobación imprime ✔ o ✘.
 
 - `.env` **no se versiona** (está en `.gitignore`). Comprobar con `git status`.
 - `.env.example` **sí se versiona**: es la documentación de qué hay que configurar.
-- Sin `.env`, el programa falla al arrancar con un mensaje claro.
+- Sin `.env`, el programa falla al arrancar con un mensaje claro. Lo mismo si
+  `DB_MOTOR` dice otro motor que no sea `sqlite`.
 
 ## Paso 1 — Del UML al código
 
@@ -63,6 +69,10 @@ Cada comprobación imprime ✔ o ✘.
     (`validar_texto`, `validar_fecha`, `validar_id`, `validar_rut`): se escriben una vez.
   - Cada repositorio tiene **una sola función de mapeo** (`_fila_a_...`), y
     `EmpleadoRepositorio` usa el mismo `_SELECT_BASE` en `obtener` y `listar`.
+  - `Empleado.__str__` reutiliza el de `Persona` con `super().__str__()`.
+  - En la interfaz, todos los menús heredan de `Menu` (el ciclo y el manejo de
+    errores se escriben una vez), y **un solo `MenuCatalogo`** sirve para
+    departamentos y proyectos, que tienen la misma forma (id + nombre).
 
 ## Paso 3 — Conexión a la base de datos
 
@@ -99,6 +109,25 @@ una capa no sabe manejar, lo deja subir.
 - `main.py` no importa `sqlite3`: captura errores del dominio sin saber qué motor hay abajo.
 - Un `IntegrityError` que el repositorio no sabe traducir (p. ej. un `CHECK`) **no
   se esconde**: se relanza con `raise`, porque significa que hay un bug.
+
+## Validación de las entradas del usuario (`interfaz/`)
+
+El programa **no se cae** por lo que escriba el usuario:
+
+| Qué escribe mal | Qué pasa |
+|---|---|
+| Opción de menú que no existe | «Opción no válida» y se muestra el menú otra vez |
+| Texto donde va un número, fecha que no existe (31-02), RUT mal escrito | Se vuelve a preguntar **solo ese campo** |
+| Sueldo negativo, más de 24 horas | Igual: el menú usa la misma regla del dominio (`validar_sueldo`, `validar_horas`) |
+| Campo obligatorio vacío | «Este dato es obligatorio» y se repite |
+| RUT o nombre repetido, departamento o proyecto que no existe, borrar algo en uso | Se informa el error del dominio y se vuelve al menú |
+| La base se bloquea o no responde | «Problema con la base de datos» y se vuelve al menú |
+| Ctrl+C | Se sale con «Hasta luego», sin traza de error |
+
+Las validaciones están en dos capas: `interfaz/consola.py` convierte el texto al
+tipo de Python (entero, fecha DD-MM-AAAA, decimal con coma), y el dominio aplica
+las reglas del negocio. Así, aunque alguien use las clases sin pasar por el menú,
+los datos se siguen validando.
 
 ## Transacciones (C09): todo o nada
 
@@ -147,6 +176,9 @@ dominio/                         # Clases del negocio. No saben SQL.
   departamento.py
   proyecto.py
   registro_tiempo.py
+interfaz/                        # Lo único que habla con el usuario.
+  consola.py                     # pedir() pregunta hasta recibir un dato válido
+  menu.py                        # Menu (base) y sus submenús
 infraestructura/                 # Lo único que habla con la base.
   conexion.py                    # obtener_conexion() · probar_conexion() · ErrorDeConexion
   esquema.py                     # crear_tablas() · vaciar_tablas()
@@ -156,6 +188,8 @@ infraestructura/                 # Lo único que habla con la base.
   registro_tiempo_repositorio.py
 docs/
   bitacora_ia.md                 # Uso de IA: prompt, respuesta y decisión
+  criterios.md                   # Dónde está la evidencia de cada criterio de la rúbrica
+app.py                           # La aplicación (menú por consola)
 main.py                          # Demo del ciclo completo + prueba de inyección
 .env.example                     # Variables a configurar (sin valores)
 requirements.txt

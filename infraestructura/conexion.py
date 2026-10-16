@@ -23,6 +23,9 @@ def obtener_conexion():
     falta una tabla). IntegrityError NO se captura aquí: sube al repositorio,
     que es quien sabe convertirlo en RutDuplicado, EntidadEnUso, etc.
     """
+    motor = os.environ.get("DB_MOTOR") or "sqlite"
+    if motor.lower() != "sqlite":
+        raise ErrorDeConexion(f"DB_MOTOR={motor!r} no está soportado: esta versión usa sqlite")
     ruta = os.environ.get("DB_NOMBRE")
     if not ruta:
         raise ErrorDeConexion("Falta la variable DB_NOMBRE. ¿Copiaste el .env.example a .env?")

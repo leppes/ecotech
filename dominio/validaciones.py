@@ -1,12 +1,12 @@
 """Validaciones que comparten varias clases del dominio.
 
 Se escriben una sola vez y las reutilizan Persona, Empleado, Departamento,
-Proyecto y RegistroTiempo en sus setters.
+Proyecto y RegistroTiempo en sus setters, y el menú al leer del teclado.
 """
 import re
 from datetime import date
 
-from dominio.excepciones import DatoInvalido, RutInvalido
+from dominio.excepciones import DatoInvalido, HorasInvalidas, RutInvalido, SueldoInvalido
 
 _FORMATO_RUT = re.compile(r"^(\d{7,8})-([\dK])$")
 
@@ -28,6 +28,18 @@ def validar_id(valor, campo):
     """Llave asignada por la base: entero positivo."""
     if not isinstance(valor, int) or valor <= 0:
         raise DatoInvalido(f"El campo {campo} debe ser un entero positivo, no {valor!r}")
+    return valor
+
+
+def validar_sueldo(valor):
+    if not isinstance(valor, int) or valor < 0:
+        raise SueldoInvalido(f"El sueldo base debe ser un entero mayor o igual a 0, no {valor!r}")
+    return valor
+
+
+def validar_horas(valor):
+    if not isinstance(valor, (int, float)) or not 0 < valor <= 24:
+        raise HorasInvalidas(f"Las horas deben ser un número mayor que 0 y hasta 24, no {valor!r}")
     return valor
 
 

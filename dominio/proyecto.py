@@ -19,5 +19,8 @@ class Proyecto:
     def nombre(self, valor):
         self._nombre = validar_texto(valor, "nombre del proyecto")
 
+    def __str__(self):
+        return f"[{self.id}] {self.nombre}"
+
     def __repr__(self):
         return f"Proyecto(id={self.id}, nombre={self.nombre!r})"
