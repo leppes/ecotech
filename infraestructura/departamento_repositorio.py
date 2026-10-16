@@ -1,5 +1,8 @@
+import sqlite3
+
 from dominio.departamento import Departamento
-from infraestructura.conexion import obtener_conexion
+from dominio.excepciones import EntidadEnUso, NombreDuplicado
+from infraestructura.conexion import es_duplicado, es_llave_foranea, obtener_conexion
 
 
 class DepartamentoRepositorio:
@@ -9,13 +12,18 @@ class DepartamentoRepositorio:
         return Departamento(id=fila[0], nombre=fila[1])
 
     def guardar(self, departamento):
-        with obtener_conexion() as conn:
-            cur = conn.execute(
-                "INSERT INTO departamento (nombre) VALUES (?)",
-                (departamento.nombre,),
-            )
-        departamento.id = cur.lastrowid   # el id lo asignó la base
-        return departamento
+        """Devuelve el departamento con el id que le asignó la base."""
+        try:
+            with obtener_conexion() as conn:
+                cur = conn.execute(
+                    "INSERT INTO departamento (nombre) VALUES (?)",
+                    (departamento.nombre,),
+                )
+        except sqlite3.IntegrityError as e:
+            if es_duplicado(e):
+                raise NombreDuplicado(f"Ya existe un departamento llamado {departamento.nombre!r}") from e
+            raise
+        return Departamento(departamento.nombre, id=cur.lastrowid)
 
     def obtener(self, id):
         with obtener_conexion() as conn:
@@ -36,16 +44,25 @@ class DepartamentoRepositorio:
         return [self._fila_a_departamento(f) for f in filas]
 
     def actualizar(self, departamento):
-        with obtener_conexion() as conn:
-            cur = conn.execute(
-                "UPDATE departamento SET nombre = ? WHERE id = ?",
-                (departamento.nombre, departamento.id),
-            )
+        try:
+            with obtener_conexion() as conn:
+                cur = conn.execute(
+                    "UPDATE departamento SET nombre = ? WHERE id = ?",
+                    (departamento.nombre, departamento.id),
+                )
+        except sqlite3.IntegrityError as e:
+            if es_duplicado(e):
+                raise NombreDuplicado(f"Ya existe un departamento llamado {departamento.nombre!r}") from e
+            raise
         return cur.rowcount
 
     def eliminar(self, id):
-        # ON DELETE RESTRICT: si el departamento tiene empleados,
-        # la base lo rechaza y se lanza ErrorDeConexion.
-        with obtener_conexion() as conn:
-            cur = conn.execute("DELETE FROM departamento WHERE id = ?", (id,))
+        # ON DELETE RESTRICT: si el departamento tiene empleados, la base lo rechaza.
+        try:
+            with obtener_conexion() as conn:
+                cur = conn.execute("DELETE FROM departamento WHERE id = ?", (id,))
+        except sqlite3.IntegrityError as e:
+            if es_llave_foranea(e):
+                raise EntidadEnUso(f"El departamento {id} tiene empleados: reasígnalos antes de borrarlo") from e
+            raise
         return cur.rowcount > 0
