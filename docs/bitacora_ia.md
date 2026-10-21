@@ -7,7 +7,7 @@ qué **decidió el equipo** — acepto / modifico / descarto — con criterio t�
 
 | Revisión | Cómo se revisó | Resultado |
 |---|---|---|
-| ¿Las consultas están parametrizadas? | Búsqueda en `infraestructura/` de `" +`, `' +`, `f"SELECT`, `f"INSERT`, `f"UPDATE`, `f"DELETE`, `%s" %`, `.format(` y `execute(f`; prueba de inyección con `' OR '1'='1` en `main.py` | Sin coincidencias. Las 12 pruebas de inyección devuelven `[]`, `None` o `False`. |
+| ¿Las consultas están parametrizadas? | Búsqueda en `infraestructura/` de `" +`, `' +`, `f"SELECT`, `f"INSERT`, `f"UPDATE`, `f"DELETE`, `%s" %`, `.format(` y `execute(f`; prueba de inyección con `' OR '1'='1` en `main.py` | Las 12 pruebas de inyección devuelven `[]`, `None` o `False`. La primera búsqueda dio «sin coincidencias», pero tenía un hueco: no detectó `execute(_SELECT_BASE + " WHERE e.rut = ?", ...)`, que la propia IA había escrito en `EmpleadoRepositorio.obtener` (ver registro del 2026-10-21). |
 | ¿Captura demasiado? | Búsqueda de `except Exception`, `except:` y `except sqlite3.Error` | Sin coincidencias. Antes, `conexion.py` capturaba `sqlite3.Error` completo y un RUT duplicado salía como "No se pudo operar sobre la base"; se cambió por capturas específicas. |
 | ¿Usa librerías que existen? | `requirements.txt` revisado en PyPI e instalado en un entorno limpio | `python-dotenv` existe (pypi.org/project/python-dotenv). `sqlite3` es de la biblioteca estándar. |
 
@@ -75,6 +75,31 @@ Puntos que conviene evaluar antes de decidir:
 - Al actualizar un empleado, Enter conserva el departamento; no hay forma de
   dejarlo «sin departamento» desde el menú.
 
+### 2026-10-21 · Claude Code · Revisión contra la guía de la ES2 y la plantilla del informe
+
+**Prompt:** «esta es la evaluación, revisa mi código y ve qué falta y si está
+bien», adjuntando la guía de la ES2 y la plantilla del informe.
+
+**Respuesta (resumen de lo que propuso):**
+
+1. La plantilla exige ejecutar desde `main.py`: el menú pasó de `app.py` a
+   `main.py`, y la demo de `main.py` a `demo.py`, con su propia base para no
+   borrar los datos de la aplicación.
+2. Copiar `.env.example` sin editarlo hacía fallar el programa (variables
+   vacías). Ahora trae `DB_MOTOR=sqlite` y `DB_NOMBRE=ecotech.db`, que no son secretos.
+3. `Menu` pasó a ser clase abstracta (`ABC`) y el dominio tiene tipos.
+4. Revisó el historial de Git: no hay `.env`, bases de datos ni contraseñas.
+5. **Hallazgo en código generado por la propia IA (sesión del 2026-10-16):**
+   `EmpleadoRepositorio.obtener` tenía `conn.execute(_SELECT_BASE + " WHERE e.rut = ?", (rut,))`.
+   No era inyectable (une dos textos fijos y el RUT va como parámetro), pero
+   había un `+` dentro de `execute(...)`, que la escala castiga con 0 y nota
+   topada al 60%. La búsqueda de la primera sesión no lo detectó porque buscaba
+   `" +` y aquí el `+` va después de un nombre de variable. Se cambió por
+   `sql = _SELECT_BASE + " WHERE e.rut = ?"` y `conn.execute(sql, (rut,))`,
+   el mismo patrón que usan los `listar` del equipo.
+
+**Decisión del equipo:** *(completar por el equipo)*
+
 ## Fragmentos generados con IA (criterio I.19)
 
 Generados con Claude Code en las dos sesiones del 2026-10-16:
@@ -82,11 +107,11 @@ Generados con Claude Code en las dos sesiones del 2026-10-16:
 | Archivo | Qué se generó |
 |---|---|
 | `dominio/excepciones.py`, `dominio/validaciones.py` | Archivos completos |
-| `dominio/persona.py`, `empleado.py`, `departamento.py`, `proyecto.py`, `registro_tiempo.py` | Propiedades con validación, `__str__` (los `__init__` y `__repr__` son del equipo, adaptados) |
+| `dominio/persona.py`, `empleado.py`, `departamento.py`, `proyecto.py`, `registro_tiempo.py` | Propiedades con validación, `__str__` y los tipos (`Optional[int]`, `-> str`, ...). Los `__init__` y `__repr__` son del equipo, adaptados |
 | `infraestructura/conexion.py` | `with conn`, captura de `OperationalError`, `probar_conexion()`, `es_duplicado()`, `es_llave_foranea()`, validación de `DB_MOTOR` |
 | `infraestructura/*_repositorio.py` | Los bloques `try/except sqlite3.IntegrityError`. Las consultas SQL y los mappers son del equipo (C08) |
-| `interfaz/`, `app.py` | Archivos completos |
-| `main.py` | Secciones «Prueba de conexión», «Encapsulamiento», «Errores de la base», «Transacción» y la función `debe_fallar` |
+| `interfaz/`, `main.py` | Archivos completos |
+| `demo.py` (antes `main.py`) | Secciones «Prueba de conexión», «Encapsulamiento», «Errores de la base», «Transacción», la función `debe_fallar` y el uso de una base propia |
 | `requirements.txt`, `.env.example`, `docs/criterios.md` | Archivos completos |
 | `README.md` | Secciones nuevas de los pasos 1-3, manejo de errores, validación de entradas y transacciones |
 

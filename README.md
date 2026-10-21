@@ -11,16 +11,17 @@ excepciones propias del dominio y transacciones (C07, C08 y C09).
 python -m venv .venv
 .venv\Scripts\activate            # Windows  (Mac/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
-copy .env.example .env            # (Mac/Linux: cp) y completar DB_MOTOR=sqlite, DB_NOMBRE=ecotech.db
-python app.py                     # la aplicación: menú por consola
-python main.py                    # la demo automática con todas las comprobaciones
+copy .env.example .env            # (Mac/Linux: cp) — con SQLite funciona sin editarlo
+python main.py                    # la aplicación: menú por consola
+python demo.py                    # la demo automática con todas las comprobaciones
 ```
 
-`app.py` es la **aplicación**: hace la prueba de conexión, crea las tablas si no
-existen y abre un menú por consola con el CRUD de empleados, departamentos,
-proyectos y registro de horas.
+`main.py` es la **aplicación**: hace la prueba de conexión, crea las tablas si no
+existen (no hace falta un paso aparte de inicialización) y abre un menú por consola
+con el CRUD de empleados, departamentos, proyectos y registro de horas.
 
-`main.py` es la **demo**: hace la prueba de conexión, crea las tablas (si no existen), vacía los
+`demo.py` es la **demo**: usa su propia base (`ecotech_demo.db`) para no borrar los
+datos de la aplicación, hace la prueba de conexión, crea las tablas (si no existen), vacía los
 datos, recorre el CRUD de las cuatro entidades, muestra cómo los objetos rechazan
 datos inválidos, cómo se traducen los errores de la base, comprueba el rollback de
 las transacciones y las decisiones de borrado, y corre la prueba de inyección.
@@ -36,6 +37,8 @@ Cada comprobación imprime ✔ o ✘.
 
 - `.env` **no se versiona** (está en `.gitignore`). Comprobar con `git status`.
 - `.env.example` **sí se versiona**: es la documentación de qué hay que configurar.
+  Trae los valores de SQLite (nombre de archivo, no son secretos); las credenciales
+  de MySQL/PostgreSQL quedan vacías y solo se completan en el `.env` local.
 - Sin `.env`, el programa falla al arrancar con un mensaje claro. Lo mismo si
   `DB_MOTOR` dice otro motor que no sea `sqlite`.
 
@@ -70,8 +73,9 @@ Cada comprobación imprime ✔ o ✘.
   - Cada repositorio tiene **una sola función de mapeo** (`_fila_a_...`), y
     `EmpleadoRepositorio` usa el mismo `_SELECT_BASE` en `obtener` y `listar`.
   - `Empleado.__str__` reutiliza el de `Persona` con `super().__str__()`.
-  - En la interfaz, todos los menús heredan de `Menu` (el ciclo y el manejo de
-    errores se escriben una vez), y **un solo `MenuCatalogo`** sirve para
+  - En la interfaz, todos los menús heredan de `Menu`, una **clase abstracta**
+    (`ABC`): el ciclo y el manejo de errores se escriben una vez, y cada submenú está
+    obligado a definir `opciones()`, y **un solo `MenuCatalogo`** sirve para
     departamentos y proyectos, que tienen la misma forma (id + nombre).
 
 ## Paso 3 — Conexión a la base de datos
@@ -81,7 +85,7 @@ Cada comprobación imprime ✔ o ✘.
 - `infraestructura/conexion.py`:
   - `obtener_conexion()` abre la conexión, activa `PRAGMA foreign_keys = ON` y la cierra siempre (`finally`).
   - `probar_conexion()` es la **prueba de conexión**: consulta `sqlite_version()` y
-    confirma que las llaves foráneas quedaron activas. Es lo primero que corre `main.py`:
+    confirma que las llaves foráneas quedaron activas. Es lo primero que corren `main.py` y `demo.py`:
 
 ```
 === Prueba de conexión ===
@@ -106,7 +110,7 @@ una capa no sabe manejar, lo deja subir.
   `ErrorDeDominio`, y las de datos inválidos además de `ValueError`.
 - La traducción se hace con `raise ... from e`: el mensaje habla el idioma del
   negocio, pero el error original de SQLite queda encadenado para depurar.
-- `main.py` no importa `sqlite3`: captura errores del dominio sin saber qué motor hay abajo.
+- `main.py`, `demo.py` e `interfaz/` no importan `sqlite3`: capturan errores del dominio sin saber qué motor hay abajo.
 - Un `IntegrityError` que el repositorio no sabe traducir (p. ej. un `CHECK`) **no
   se esconde**: se relanza con `raise`, porque significa que hay un bug.
 
@@ -137,7 +141,7 @@ los datos se siguen validando.
 La operación que lo necesita es **guardar un empleado**: son dos escrituras que
 dependen entre sí (`INSERT INTO persona` + `INSERT INTO empleado`). Si la segunda
 falla, sin transacción quedaría una persona huérfana. Lo mismo al **actualizar**
-(`UPDATE persona` + `UPDATE empleado`). `main.py` lo comprueba:
+(`UPDATE persona` + `UPDATE empleado`). `demo.py` lo comprueba:
 
 - Guarda un empleado con un departamento que no existe → `ReferenciaInexistente`.
   Luego guarda el mismo RUT con un departamento válido: si la persona hubiera
@@ -189,9 +193,9 @@ infraestructura/                 # Lo único que habla con la base.
 docs/
   bitacora_ia.md                 # Uso de IA: prompt, respuesta y decisión
   criterios.md                   # Dónde está la evidencia de cada criterio de la rúbrica
-app.py                           # La aplicación (menú por consola)
-main.py                          # Demo del ciclo completo + prueba de inyección
-.env.example                     # Variables a configurar (sin valores)
+main.py                          # La aplicación (menú por consola)
+demo.py                          # Demo del ciclo completo + prueba de inyección
+.env.example                     # Variables a configurar (sin credenciales)
 requirements.txt
 ```
 

@@ -52,8 +52,9 @@ class EmpleadoRepositorio:
 
     # ---------- READ ----------
     def obtener(self, rut):
+        sql = _SELECT_BASE + " WHERE e.rut = ?"     # texto fijo
         with obtener_conexion() as conn:
-            fila = conn.execute(_SELECT_BASE + " WHERE e.rut = ?", (rut,)).fetchone()
+            fila = conn.execute(sql, (rut,)).fetchone()   # el valor va aparte
         return self._fila_a_empleado(fila) if fila else None
 
     def listar(self, nombre_contiene=None):

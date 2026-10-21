@@ -1,4 +1,6 @@
 """Menús de la aplicación. No saben SQL: usan los repositorios y el dominio."""
+from abc import ABC, abstractmethod
+
 from dominio.departamento import Departamento
 from dominio.empleado import Empleado
 from dominio.excepciones import ErrorDeDominio
@@ -23,7 +25,7 @@ def a_horas(texto):
     return validar_horas(a_decimal(texto))
 
 
-class Menu:
+class Menu(ABC):
     """Base de todos los menús: muestra las opciones y ejecuta la elegida.
 
     Cada submenú solo define su `titulo` y sus `opciones()`; el ciclo y el
@@ -32,9 +34,10 @@ class Menu:
     titulo = "Menú"
     salida = "Volver"
 
+    @abstractmethod
     def opciones(self):
-        """Lista de (texto, método). La define cada submenú."""
-        raise NotImplementedError
+        """Lista de (texto, método). Cada submenú está obligado a definirla:
+        Menu es abstracta y no se puede instanciar directamente."""
 
     def mostrar(self):
         opciones = self.opciones()
