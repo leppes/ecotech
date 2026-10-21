@@ -2,35 +2,34 @@ import sqlite3
 
 from dominio.departamento import Departamento
 from dominio.excepciones import EntidadEnUso, NombreDuplicado
-from infraestructura.conexion import es_duplicado, es_llave_foranea, obtener_conexion
+from infraestructura.conexion import obtener_conexion
 
 
 class DepartamentoRepositorio:
 
-    @staticmethod
-    def _fila_a_departamento(fila):
+    def _fila_a_departamento(self, fila):
         return Departamento(id=fila[0], nombre=fila[1])
 
     def guardar(self, departamento):
-        """Devuelve el departamento con el id que le asignó la base."""
         try:
             with obtener_conexion() as conn:
                 cur = conn.execute(
                     "INSERT INTO departamento (nombre) VALUES (?)",
                     (departamento.nombre,),
                 )
-        except sqlite3.IntegrityError as e:
-            if es_duplicado(e):
-                raise NombreDuplicado(f"Ya existe un departamento llamado {departamento.nombre!r}") from e
-            raise
-        return Departamento(departamento.nombre, id=cur.lastrowid)
+                nuevo_id = cur.lastrowid
+        except sqlite3.IntegrityError:
+            raise NombreDuplicado(f"Ya existe un departamento llamado {departamento.nombre}")
+        return Departamento(departamento.nombre, nuevo_id)
 
     def obtener(self, id):
         with obtener_conexion() as conn:
             fila = conn.execute(
                 "SELECT id, nombre FROM departamento WHERE id = ?", (id,)
             ).fetchone()
-        return self._fila_a_departamento(fila) if fila else None
+        if fila is None:
+            return None
+        return self._fila_a_departamento(fila)
 
     def listar(self, nombre_contiene=None):
         sql = "SELECT id, nombre FROM departamento"
@@ -41,7 +40,10 @@ class DepartamentoRepositorio:
         sql += " ORDER BY nombre"
         with obtener_conexion() as conn:
             filas = conn.execute(sql, params).fetchall()
-        return [self._fila_a_departamento(f) for f in filas]
+        lista = []
+        for fila in filas:
+            lista.append(self._fila_a_departamento(fila))
+        return lista
 
     def actualizar(self, departamento):
         try:
@@ -50,19 +52,16 @@ class DepartamentoRepositorio:
                     "UPDATE departamento SET nombre = ? WHERE id = ?",
                     (departamento.nombre, departamento.id),
                 )
-        except sqlite3.IntegrityError as e:
-            if es_duplicado(e):
-                raise NombreDuplicado(f"Ya existe un departamento llamado {departamento.nombre!r}") from e
-            raise
-        return cur.rowcount
+                filas = cur.rowcount
+        except sqlite3.IntegrityError:
+            raise NombreDuplicado(f"Ya existe un departamento llamado {departamento.nombre}")
+        return filas
 
     def eliminar(self, id):
-        # ON DELETE RESTRICT: si el departamento tiene empleados, la base lo rechaza.
         try:
             with obtener_conexion() as conn:
                 cur = conn.execute("DELETE FROM departamento WHERE id = ?", (id,))
-        except sqlite3.IntegrityError as e:
-            if es_llave_foranea(e):
-                raise EntidadEnUso(f"El departamento {id} tiene empleados: reasígnalos antes de borrarlo") from e
-            raise
-        return cur.rowcount > 0
+                borrados = cur.rowcount
+        except sqlite3.IntegrityError:
+            raise EntidadEnUso(f"El departamento {id} tiene empleados asignados")
+        return borrados > 0

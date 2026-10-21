@@ -69,9 +69,10 @@ Cada comprobación imprime ✔ o ✘.
 - **Reutilización**:
   - `Empleado` hereda de `Persona` el RUT y el nombre **con sus validaciones**.
   - `dominio/validaciones.py` reúne las validaciones que usan varias clases
-    (`validar_texto`, `validar_fecha`, `validar_id`, `validar_rut`): se escriben una vez.
+    (`validar_texto`, `validar_fecha`, `validar_id`, `validar_sueldo`, `validar_horas`,
+    `validar_rut`): se escriben una vez.
   - Cada repositorio tiene **una sola función de mapeo** (`_fila_a_...`), y
-    `EmpleadoRepositorio` usa el mismo `_SELECT_BASE` en `obtener` y `listar`.
+    `EmpleadoRepositorio` usa el mismo `SELECT_EMPLEADO` en `obtener` y `listar`.
   - `Empleado.__str__` reutiliza el de `Persona` con `super().__str__()`.
   - En la interfaz, todos los menús heredan de `Menu`, una **clase abstracta**
     (`ABC`): el ciclo y el manejo de errores se escriben una vez, y cada submenú está
@@ -83,7 +84,8 @@ Cada comprobación imprime ✔ o ✘.
 - Librería oficial: **`sqlite3`**, de la biblioteca estándar de Python (no se instala).
 - `python-dotenv` lee el `.env`, así las credenciales quedan fuera del código.
 - `infraestructura/conexion.py`:
-  - `obtener_conexion()` abre la conexión, activa `PRAGMA foreign_keys = ON` y la cierra siempre (`finally`).
+  - `obtener_conexion()` abre la conexión, activa `PRAGMA foreign_keys = ON`, hace
+    `commit()` o `rollback()` y la cierra siempre (`finally`).
   - `probar_conexion()` es la **prueba de conexión**: consulta `sqlite_version()` y
     confirma que las llaves foráneas quedaron activas. Es lo primero que corren `main.py` y `demo.py`:
 
@@ -100,19 +102,21 @@ una capa no sabe manejar, lo deja subir.
 
 | Error de origen | Dónde se captura | Se convierte en | Cuándo |
 |---|---|---|---|
-| Dato con formato inválido | setter de la clase | `RutInvalido`, `SueldoInvalido`, `HorasInvalidas`, `DatoInvalido` | RUT mal escrito, sueldo negativo, 31 horas, nombre vacío |
+| Dato con formato inválido | setter de la clase | `DatoInvalido` | RUT mal escrito, sueldo negativo, 31 horas, nombre vacío |
 | `sqlite3.IntegrityError` (UNIQUE) | repositorio | `RutDuplicado`, `NombreDuplicado` | Mismo RUT dos veces, nombre de departamento/proyecto repetido |
 | `sqlite3.IntegrityError` (FOREIGN KEY) al guardar | repositorio | `ReferenciaInexistente` | Departamento o proyecto que no existe |
 | `sqlite3.IntegrityError` (FOREIGN KEY) al borrar | repositorio | `EntidadEnUso` | Departamento con empleados, proyecto con horas |
-| `sqlite3.OperationalError` | `obtener_conexion()` | `ErrorDeConexion` | La base no abre, está bloqueada o no responde |
+| `sqlite3.OperationalError` | `obtener_conexion()` | `ErrorDeConexion` (mensaje genérico; el detalle va a `ecotech.log`) | La base no abre, está bloqueada o no responde |
 
 - Las excepciones del dominio están en `dominio/excepciones.py`. Todas heredan de
-  `ErrorDeDominio`, y las de datos inválidos además de `ValueError`.
-- La traducción se hace con `raise ... from e`: el mensaje habla el idioma del
-  negocio, pero el error original de SQLite queda encadenado para depurar.
+  `ErrorDeDominio`; `DatoInvalido` hereda además de `ValueError`.
+- El repositorio sabe qué puede fallar en cada operación: al guardar un empleado
+  revisa si el mensaje de SQLite dice `UNIQUE` (RUT repetido) o es la llave foránea
+  (departamento que no existe); en las demás operaciones solo hay una causa posible.
+- **Mensajes seguros:** al usuario nunca se le muestran detalles internos (la ruta
+  del archivo de la base ni el mensaje de SQLite). Ve un mensaje genérico, y el
+  detalle técnico se guarda con `logging` en `ecotech.log` (ignorado por Git).
 - `main.py`, `demo.py` e `interfaz/` no importan `sqlite3`: capturan errores del dominio sin saber qué motor hay abajo.
-- Un `IntegrityError` que el repositorio no sabe traducir (p. ej. un `CHECK`) **no
-  se esconde**: se relanza con `raise`, porque significa que hay un bug.
 
 ## Validación de las entradas del usuario (`interfaz/`)
 
@@ -125,7 +129,7 @@ El programa **no se cae** por lo que escriba el usuario:
 | Sueldo negativo, más de 24 horas | Igual: el menú usa la misma regla del dominio (`validar_sueldo`, `validar_horas`) |
 | Campo obligatorio vacío | «Este dato es obligatorio» y se repite |
 | RUT o nombre repetido, departamento o proyecto que no existe, borrar algo en uso | Se informa el error del dominio y se vuelve al menú |
-| La base se bloquea o no responde | «Problema con la base de datos» y se vuelve al menú |
+| La base se bloquea o no responde | «No se pudo completar la operación en la base de datos» y se vuelve al menú |
 | Ctrl+C | Se sale con «Hasta luego», sin traza de error |
 
 Las validaciones están en dos capas: `interfaz/consola.py` convierte el texto al
@@ -135,8 +139,8 @@ los datos se siguen validando.
 
 ## Transacciones (C09): todo o nada
 
-`obtener_conexion()` es una transacción: dentro usa `with conn:`, que hace
-**commit** si el bloque termina bien y **rollback** si salta una excepción.
+`obtener_conexion()` es una transacción: si el bloque `with` termina bien hace
+**`conn.commit()`**, y si salta un error de la base hace **`conn.rollback()`**.
 
 La operación que lo necesita es **guardar un empleado**: son dos escrituras que
 dependen entre sí (`INSERT INTO persona` + `INSERT INTO empleado`). Si la segunda
@@ -184,7 +188,7 @@ interfaz/                        # Lo único que habla con el usuario.
   consola.py                     # pedir() pregunta hasta recibir un dato válido
   menu.py                        # Menu (base) y sus submenús
 infraestructura/                 # Lo único que habla con la base.
-  conexion.py                    # obtener_conexion() · probar_conexion() · ErrorDeConexion
+  conexion.py                    # obtener_conexion() · probar_conexion() · ErrorDeConexion · logging
   esquema.py                     # crear_tablas() · vaciar_tablas()
   empleado_repositorio.py        # Traducen IntegrityError a errores del dominio
   departamento_repositorio.py

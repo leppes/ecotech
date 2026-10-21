@@ -1,4 +1,3 @@
-"""Menús de la aplicación. No saben SQL: usan los repositorios y el dominio."""
 from abc import ABC, abstractmethod
 
 from dominio.departamento import Departamento
@@ -15,8 +14,6 @@ from infraestructura.registro_tiempo_repositorio import RegistroTiempoRepositori
 from interfaz.consola import a_decimal, a_entero, a_fecha, confirmar, mostrar_lista, pedir
 
 
-# Convertidores que además aplican la regla del dominio: si el dato no la
-# cumple, se vuelve a preguntar solo ese campo y no se pierde el formulario.
 def a_sueldo(texto):
     return validar_sueldo(a_entero(texto))
 
@@ -26,18 +23,12 @@ def a_horas(texto):
 
 
 class Menu(ABC):
-    """Base de todos los menús: muestra las opciones y ejecuta la elegida.
-
-    Cada submenú solo define su `titulo` y sus `opciones()`; el ciclo y el
-    manejo de errores se escriben una sola vez aquí.
-    """
     titulo = "Menú"
     salida = "Volver"
 
     @abstractmethod
     def opciones(self):
-        """Lista de (texto, método). Cada submenú está obligado a definirla:
-        Menu es abstracta y no se puede instanciar directamente."""
+        pass
 
     def mostrar(self):
         opciones = self.opciones()
@@ -54,22 +45,16 @@ class Menu(ABC):
             else:
                 print(f"  ✘ Opción no válida: escribe un número del 0 al {len(opciones)}.")
 
-    @staticmethod
-    def _ejecutar(accion):
-        # Un error del negocio o de la base se informa y se vuelve al menú:
-        # el programa no se cae. Cualquier otro error es un bug y se deja subir.
+    def _ejecutar(self, accion):
         try:
             accion()
         except ErrorDeDominio as e:
             print(f"  ✘ {e}")
         except ErrorDeConexion as e:
-            print(f"  ✘ Problema con la base de datos: {e}")
+            print(f"  ✘ {e}")
 
 
 class MenuCatalogo(Menu):
-    """Departamentos y proyectos se manejan igual (id + nombre): un solo menú
-    para los dos, que recibe la clase y el repositorio con que trabaja."""
-
     def __init__(self, titulo, clase, repositorio):
         self.titulo = titulo
         self._clase = clase

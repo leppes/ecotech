@@ -1,36 +1,35 @@
 import sqlite3
 
-from dominio.excepciones import EntidadEnUso, NombreDuplicado
 from dominio.proyecto import Proyecto
-from infraestructura.conexion import es_duplicado, es_llave_foranea, obtener_conexion
+from dominio.excepciones import EntidadEnUso, NombreDuplicado
+from infraestructura.conexion import obtener_conexion
 
 
 class ProyectoRepositorio:
 
-    @staticmethod
-    def _fila_a_proyecto(fila):
+    def _fila_a_proyecto(self, fila):
         return Proyecto(id=fila[0], nombre=fila[1])
 
     def guardar(self, proyecto):
-        """Devuelve el proyecto con el id que le asignó la base."""
         try:
             with obtener_conexion() as conn:
                 cur = conn.execute(
                     "INSERT INTO proyecto (nombre) VALUES (?)",
                     (proyecto.nombre,),
                 )
-        except sqlite3.IntegrityError as e:
-            if es_duplicado(e):
-                raise NombreDuplicado(f"Ya existe un proyecto llamado {proyecto.nombre!r}") from e
-            raise
-        return Proyecto(proyecto.nombre, id=cur.lastrowid)
+                nuevo_id = cur.lastrowid
+        except sqlite3.IntegrityError:
+            raise NombreDuplicado(f"Ya existe un proyecto llamado {proyecto.nombre}")
+        return Proyecto(proyecto.nombre, nuevo_id)
 
     def obtener(self, id):
         with obtener_conexion() as conn:
             fila = conn.execute(
                 "SELECT id, nombre FROM proyecto WHERE id = ?", (id,)
             ).fetchone()
-        return self._fila_a_proyecto(fila) if fila else None
+        if fila is None:
+            return None
+        return self._fila_a_proyecto(fila)
 
     def listar(self, nombre_contiene=None):
         sql = "SELECT id, nombre FROM proyecto"
@@ -41,7 +40,10 @@ class ProyectoRepositorio:
         sql += " ORDER BY nombre"
         with obtener_conexion() as conn:
             filas = conn.execute(sql, params).fetchall()
-        return [self._fila_a_proyecto(f) for f in filas]
+        lista = []
+        for fila in filas:
+            lista.append(self._fila_a_proyecto(fila))
+        return lista
 
     def actualizar(self, proyecto):
         try:
@@ -50,19 +52,16 @@ class ProyectoRepositorio:
                     "UPDATE proyecto SET nombre = ? WHERE id = ?",
                     (proyecto.nombre, proyecto.id),
                 )
-        except sqlite3.IntegrityError as e:
-            if es_duplicado(e):
-                raise NombreDuplicado(f"Ya existe un proyecto llamado {proyecto.nombre!r}") from e
-            raise
-        return cur.rowcount
+                filas = cur.rowcount
+        except sqlite3.IntegrityError:
+            raise NombreDuplicado(f"Ya existe un proyecto llamado {proyecto.nombre}")
+        return filas
 
     def eliminar(self, id):
-        # ON DELETE RESTRICT: si el proyecto tiene registros de tiempo, la base lo rechaza.
         try:
             with obtener_conexion() as conn:
                 cur = conn.execute("DELETE FROM proyecto WHERE id = ?", (id,))
-        except sqlite3.IntegrityError as e:
-            if es_llave_foranea(e):
-                raise EntidadEnUso(f"El proyecto {id} tiene horas registradas: no se puede borrar") from e
-            raise
-        return cur.rowcount > 0
+                borrados = cur.rowcount
+        except sqlite3.IntegrityError:
+            raise EntidadEnUso(f"El proyecto {id} tiene horas registradas, no se puede eliminar")
+        return borrados > 0

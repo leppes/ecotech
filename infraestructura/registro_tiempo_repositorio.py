@@ -3,13 +3,12 @@ from datetime import date
 
 from dominio.excepciones import ReferenciaInexistente
 from dominio.registro_tiempo import RegistroTiempo
-from infraestructura.conexion import es_llave_foranea, obtener_conexion
+from infraestructura.conexion import obtener_conexion
 
 
 class RegistroTiempoRepositorio:
 
-    @staticmethod
-    def _fila_a_registro(fila):
+    def _fila_a_registro(self, fila):
         return RegistroTiempo(
             id=fila[0],
             empleado_rut=fila[1],
@@ -19,7 +18,6 @@ class RegistroTiempoRepositorio:
         )
 
     def guardar(self, registro):
-        """Devuelve el registro con el id que le asignó la base."""
         try:
             with obtener_conexion() as conn:
                 cur = conn.execute(
@@ -28,15 +26,12 @@ class RegistroTiempoRepositorio:
                     (registro.empleado_rut, registro.proyecto_id,
                      registro.horas, registro.fecha.isoformat()),
                 )
-        except sqlite3.IntegrityError as e:
-            if es_llave_foranea(e):
-                # SQLite no dice cuál de las dos llaves falló.
-                raise ReferenciaInexistente(
-                    f"El empleado {registro.empleado_rut} o el proyecto {registro.proyecto_id} no existe"
-                ) from e
-            raise
+                nuevo_id = cur.lastrowid
+        except sqlite3.IntegrityError:
+            raise ReferenciaInexistente(
+                f"El empleado {registro.empleado_rut} o el proyecto {registro.proyecto_id} no existe")
         return RegistroTiempo(registro.empleado_rut, registro.proyecto_id,
-                              registro.horas, registro.fecha, id=cur.lastrowid)
+                              registro.horas, registro.fecha, nuevo_id)
 
     def obtener(self, id):
         with obtener_conexion() as conn:
@@ -45,11 +40,11 @@ class RegistroTiempoRepositorio:
                    FROM registro_tiempo WHERE id = ?""",
                 (id,),
             ).fetchone()
-        return self._fila_a_registro(fila) if fila else None
+        if fila is None:
+            return None
+        return self._fila_a_registro(fila)
 
     def listar(self, empleado_rut=None, desde=None, hasta=None):
-        """Filtros opcionales. Cada filtro agrega TEXTO FIJO con su ?,
-        y el valor va a la lista de parámetros. Nunca se concatena el valor."""
         sql = "SELECT id, empleado_rut, proyecto_id, horas, fecha FROM registro_tiempo"
         condiciones = []
         params = []
@@ -63,12 +58,14 @@ class RegistroTiempoRepositorio:
             condiciones.append("fecha <= ?")
             params.append(hasta.isoformat())
         if condiciones:
-            sql += " WHERE "
-            sql += " AND ".join(condiciones)   # une textos fijos, no valores
+            sql += " WHERE " + " AND ".join(condiciones)
         sql += " ORDER BY fecha"
         with obtener_conexion() as conn:
             filas = conn.execute(sql, params).fetchall()
-        return [self._fila_a_registro(f) for f in filas]
+        lista = []
+        for fila in filas:
+            lista.append(self._fila_a_registro(fila))
+        return lista
 
     def actualizar(self, registro):
         try:
@@ -78,13 +75,13 @@ class RegistroTiempoRepositorio:
                        WHERE id = ?""",
                     (registro.proyecto_id, registro.horas, registro.fecha.isoformat(), registro.id),
                 )
-        except sqlite3.IntegrityError as e:
-            if es_llave_foranea(e):
-                raise ReferenciaInexistente(f"El proyecto {registro.proyecto_id} no existe") from e
-            raise
-        return cur.rowcount
+                filas = cur.rowcount
+        except sqlite3.IntegrityError:
+            raise ReferenciaInexistente(f"El proyecto {registro.proyecto_id} no existe")
+        return filas
 
     def eliminar(self, id):
         with obtener_conexion() as conn:
             cur = conn.execute("DELETE FROM registro_tiempo WHERE id = ?", (id,))
-        return cur.rowcount > 0
+            borrados = cur.rowcount
+        return borrados > 0
