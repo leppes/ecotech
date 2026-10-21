@@ -1,4 +1,4 @@
-# infraestructura/conexion.py
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -9,55 +9,38 @@ load_dotenv()
 
 
 class ErrorDeConexion(Exception):
-    """La base de datos no está configurada, no está disponible o no respondió."""
+    pass
 
 
 @contextmanager
 def obtener_conexion():
-    """Una conexión = una transacción: o pasa todo lo del bloque, o no pasa nada.
-
-    - Si el bloque termina bien, `with conn` hace commit.
-    - Si salta cualquier excepción, `with conn` hace rollback y la deja subir.
-
-    Solo se traduce OperationalError (la base no responde, está bloqueada o le
-    falta una tabla). IntegrityError NO se captura aquí: sube al repositorio,
-    que es quien sabe convertirlo en RutDuplicado, EntidadEnUso, etc.
-    """
-    motor = os.environ.get("DB_MOTOR") or "sqlite"
-    if motor.lower() != "sqlite":
-        raise ErrorDeConexion(f"DB_MOTOR={motor!r} no está soportado: esta versión usa sqlite")
-    ruta = os.environ.get("DB_NOMBRE")
+    if os.getenv("DB_MOTOR", "sqlite") != "sqlite":
+        raise ErrorDeConexion("Este programa solo funciona con DB_MOTOR=sqlite")
+    ruta = os.getenv("DB_NOMBRE")
     if not ruta:
-        raise ErrorDeConexion("Falta la variable DB_NOMBRE. ¿Copiaste el .env.example a .env?")
+        raise ErrorDeConexion("Falta DB_NOMBRE en el archivo .env (copia .env.example a .env)")
     try:
         conn = sqlite3.connect(ruta)
+        conn.execute("PRAGMA foreign_keys = ON")
     except sqlite3.OperationalError as e:
-        raise ErrorDeConexion(f"No se pudo abrir la base {ruta!r}: {e}") from e
+        logging.error("No se pudo abrir la base %s: %s", ruta, e)
+        raise ErrorDeConexion("No se pudo conectar a la base de datos")
     try:
-        conn.execute("PRAGMA foreign_keys = ON")   # SQLite las ignora si no se activan
-        with conn:
-            yield conn
+        yield conn
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        raise
     except sqlite3.OperationalError as e:
-        raise ErrorDeConexion(f"La base no pudo completar la operación: {e}") from e
+        conn.rollback()
+        logging.error("Error de SQLite: %s", e)
+        raise ErrorDeConexion("No se pudo completar la operación en la base de datos")
     finally:
         conn.close()
 
 
 def probar_conexion():
-    """Prueba de conexión: abre la base, le pide la versión del motor y
-    confirma que las llaves foráneas quedaron activas."""
     with obtener_conexion() as conn:
         version = conn.execute("SELECT sqlite_version()").fetchone()[0]
-        llaves_foraneas = conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
-    return version, llaves_foraneas
-
-
-# SQLite informa qué regla se violó en el mensaje del IntegrityError.
-def es_duplicado(error):
-    """UNIQUE o PRIMARY KEY repetida."""
-    return str(error).startswith("UNIQUE constraint failed")
-
-
-def es_llave_foranea(error):
-    """FOREIGN KEY: se apunta a algo que no existe, o se borra algo que está en uso."""
-    return str(error).startswith("FOREIGN KEY constraint failed")
+        activas = conn.execute("PRAGMA foreign_keys").fetchone()[0]
+    return version, activas == 1

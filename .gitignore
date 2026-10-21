@@ -9,3 +9,5 @@
 __pycache__/
 *.pyc
 
+# Registro de errores
+*.log

@@ -100,17 +100,48 @@ bien», adjuntando la guía de la ES2 y la plantilla del informe.
 
 **Decisión del equipo:** *(completar por el equipo)*
 
+### 2026-10-21 · Claude Code · Corrección de mensajes de error y simplificación del código
+
+**Pedido:** corregir los mensajes de error que mostraban detalles internos y
+simplificar el código al nivel del curso (2.º semestre), sin comentarios.
+
+**Respuesta (resumen de lo que hizo):**
+
+1. **Seguridad (fuga de información):** `ErrorDeConexion` incluía la ruta del
+   archivo de la base y el mensaje de SQLite, y el menú se los mostraba al usuario.
+   Ahora el usuario ve un mensaje genérico («No se pudo completar la operación en la
+   base de datos») y el detalle se guarda con `logging` en `ecotech.log`, que está
+   en `.gitignore`. Probado bloqueando la base: el usuario ve el mensaje genérico y
+   el log dice `database is locked`.
+2. **Transacción explícita:** `with conn:` se cambió por `conn.commit()` y
+   `conn.rollback()` dentro de `obtener_conexion()`, igual que en la clase 9.
+3. **Menos excepciones:** `RutInvalido`, `SueldoInvalido` y `HorasInvalidas` se
+   juntaron en una sola, `DatoInvalido`.
+4. **Código más simple:** validación del RUT sin expresiones regulares (`split` e
+   `isdigit`); se quitaron `es_duplicado()` y `es_llave_foranea()` (el repositorio
+   revisa `"UNIQUE" in str(e)` donde hace falta); ciclos `for` en vez de listas por
+   comprensión; sin `Optional`, `@staticmethod` ni `__repr__`.
+5. Se borraron los comentarios y docstrings de los archivos `.py`.
+
+Se volvieron a correr todas las pruebas: `demo.py` sin ✘, la sesión de menú con
+entradas inválidas sin errores, y la prueba de romper la transacción a propósito
+sigue marcando ✘.
+
+**Decisión del equipo:** *(completar por el equipo)*
+
 ## Fragmentos generados con IA (criterio I.19)
 
-Generados con Claude Code en las dos sesiones del 2026-10-16:
+Generados con Claude Code en las sesiones del 2026-10-16 y del 2026-10-21. El
+2026-10-21 se reescribieron en versión simplificada todos los archivos `.py` de la
+tabla:
 
 | Archivo | Qué se generó |
 |---|---|
 | `dominio/excepciones.py`, `dominio/validaciones.py` | Archivos completos |
-| `dominio/persona.py`, `empleado.py`, `departamento.py`, `proyecto.py`, `registro_tiempo.py` | Propiedades con validación, `__str__` y los tipos (`Optional[int]`, `-> str`, ...). Los `__init__` y `__repr__` son del equipo, adaptados |
-| `infraestructura/conexion.py` | `with conn`, captura de `OperationalError`, `probar_conexion()`, `es_duplicado()`, `es_llave_foranea()`, validación de `DB_MOTOR` |
+| `dominio/persona.py`, `empleado.py`, `departamento.py`, `proyecto.py`, `registro_tiempo.py` | Propiedades con validación, `__str__` y los tipos del constructor. Los `__init__` son del equipo, adaptados |
+| `infraestructura/conexion.py` | `commit()`/`rollback()`, captura de `OperationalError` con mensaje genérico y `logging`, `probar_conexion()`, validación de `DB_MOTOR` |
 | `infraestructura/*_repositorio.py` | Los bloques `try/except sqlite3.IntegrityError`. Las consultas SQL y los mappers son del equipo (C08) |
-| `interfaz/`, `main.py` | Archivos completos |
+| `interfaz/`, `main.py` (con `logging`) | Archivos completos |
 | `demo.py` (antes `main.py`) | Secciones «Prueba de conexión», «Encapsulamiento», «Errores de la base», «Transacción», la función `debe_fallar` y el uso de una base propia |
 | `requirements.txt`, `.env.example`, `docs/criterios.md` | Archivos completos |
 | `README.md` | Secciones nuevas de los pasos 1-3, manejo de errores, validación de entradas y transacciones |
