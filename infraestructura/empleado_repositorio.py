@@ -1,7 +1,9 @@
+import sqlite3
 from datetime import date
 
 from dominio.empleado import Empleado
-from infraestructura.conexion import obtener_conexion
+from dominio.excepciones import ReferenciaInexistente, RutDuplicado
+from infraestructura.conexion import es_duplicado, es_llave_foranea, obtener_conexion
 
 # Mismo orden de columnas en TODAS las lecturas -> el mapper siempre calza.
 _SELECT_BASE = """SELECT p.rut, p.nombre, e.fecha_ingreso, e.sueldo_base, e.departamento_id
@@ -22,30 +24,37 @@ class EmpleadoRepositorio:
 
     # ---------- CREATE ----------
     def guardar(self, empleado):
-        # Las dos inserciones van en la misma conexión = misma transacción.
-        # Si la segunda falla, se deshace también la primera.
-        with obtener_conexion() as conn:
-            conn.execute(
-                "INSERT INTO persona (rut, nombre) VALUES (?, ?)",
-                (empleado.rut, empleado.nombre),
-            )
-            conn.execute(
-                """INSERT INTO empleado (rut, fecha_ingreso, sueldo_base, departamento_id)
-                   VALUES (?, ?, ?, ?)""",
-                (empleado.rut, empleado.fecha_ingreso.isoformat(),
-                 empleado.sueldo_base, empleado.departamento_id),
-            )
+        """TRANSACCIÓN: persona y empleado se insertan juntos o no se inserta ninguno.
+
+        Las dos inserciones van en la misma conexión = misma transacción.
+        Si la segunda falla (p. ej. el departamento no existe), el rollback
+        deshace también la primera y no queda una persona huérfana.
+        """
+        try:
+            with obtener_conexion() as conn:
+                conn.execute(
+                    "INSERT INTO persona (rut, nombre) VALUES (?, ?)",
+                    (empleado.rut, empleado.nombre),
+                )
+                conn.execute(
+                    """INSERT INTO empleado (rut, fecha_ingreso, sueldo_base, departamento_id)
+                       VALUES (?, ?, ?, ?)""",
+                    (empleado.rut, empleado.fecha_ingreso.isoformat(),
+                     empleado.sueldo_base, empleado.departamento_id),
+                )
+        except sqlite3.IntegrityError as e:
+            if es_duplicado(e):
+                raise RutDuplicado(f"Ya existe una persona con RUT {empleado.rut}") from e
+            if es_llave_foranea(e):
+                raise ReferenciaInexistente(f"El departamento {empleado.departamento_id} no existe") from e
+            raise
         return empleado
 
     # ---------- READ ----------
     def obtener(self, rut):
+        sql = _SELECT_BASE + " WHERE e.rut = ?"     # texto fijo
         with obtener_conexion() as conn:
-            fila = conn.execute(
-                """SELECT p.rut, p.nombre, e.fecha_ingreso, e.sueldo_base, e.departamento_id
-                   FROM empleado e JOIN persona p ON p.rut = e.rut
-                   WHERE e.rut = ?""",
-                (rut,),
-            ).fetchone()
+            fila = conn.execute(sql, (rut,)).fetchone()   # el valor va aparte
         return self._fila_a_empleado(fila) if fila else None
 
     def listar(self, nombre_contiene=None):
@@ -61,18 +70,24 @@ class EmpleadoRepositorio:
 
     # ---------- UPDATE ----------
     def actualizar(self, empleado):
-        with obtener_conexion() as conn:
-            conn.execute(
-                "UPDATE persona SET nombre = ? WHERE rut = ?",
-                (empleado.nombre, empleado.rut),
-            )
-            cur = conn.execute(
-                """UPDATE empleado
-                   SET fecha_ingreso = ?, sueldo_base = ?, departamento_id = ?
-                   WHERE rut = ?""",
-                (empleado.fecha_ingreso.isoformat(), empleado.sueldo_base,
-                 empleado.departamento_id, empleado.rut),
-            )
+        """TRANSACCIÓN: si falla el UPDATE de empleado, se deshace también el de persona."""
+        try:
+            with obtener_conexion() as conn:
+                conn.execute(
+                    "UPDATE persona SET nombre = ? WHERE rut = ?",
+                    (empleado.nombre, empleado.rut),
+                )
+                cur = conn.execute(
+                    """UPDATE empleado
+                       SET fecha_ingreso = ?, sueldo_base = ?, departamento_id = ?
+                       WHERE rut = ?""",
+                    (empleado.fecha_ingreso.isoformat(), empleado.sueldo_base,
+                     empleado.departamento_id, empleado.rut),
+                )
+        except sqlite3.IntegrityError as e:
+            if es_llave_foranea(e):
+                raise ReferenciaInexistente(f"El departamento {empleado.departamento_id} no existe") from e
+            raise
         return cur.rowcount
 
     # ---------- DELETE ----------

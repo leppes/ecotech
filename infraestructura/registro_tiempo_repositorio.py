@@ -1,7 +1,9 @@
+import sqlite3
 from datetime import date
 
+from dominio.excepciones import ReferenciaInexistente
 from dominio.registro_tiempo import RegistroTiempo
-from infraestructura.conexion import obtener_conexion
+from infraestructura.conexion import es_llave_foranea, obtener_conexion
 
 
 class RegistroTiempoRepositorio:
@@ -17,15 +19,24 @@ class RegistroTiempoRepositorio:
         )
 
     def guardar(self, registro):
-        with obtener_conexion() as conn:
-            cur = conn.execute(
-                """INSERT INTO registro_tiempo (empleado_rut, proyecto_id, horas, fecha)
-                   VALUES (?, ?, ?, ?)""",
-                (registro.empleado_rut, registro.proyecto_id,
-                 registro.horas, registro.fecha.isoformat()),
-            )
-        registro.id = cur.lastrowid
-        return registro
+        """Devuelve el registro con el id que le asignó la base."""
+        try:
+            with obtener_conexion() as conn:
+                cur = conn.execute(
+                    """INSERT INTO registro_tiempo (empleado_rut, proyecto_id, horas, fecha)
+                       VALUES (?, ?, ?, ?)""",
+                    (registro.empleado_rut, registro.proyecto_id,
+                     registro.horas, registro.fecha.isoformat()),
+                )
+        except sqlite3.IntegrityError as e:
+            if es_llave_foranea(e):
+                # SQLite no dice cuál de las dos llaves falló.
+                raise ReferenciaInexistente(
+                    f"El empleado {registro.empleado_rut} o el proyecto {registro.proyecto_id} no existe"
+                ) from e
+            raise
+        return RegistroTiempo(registro.empleado_rut, registro.proyecto_id,
+                              registro.horas, registro.fecha, id=cur.lastrowid)
 
     def obtener(self, id):
         with obtener_conexion() as conn:
@@ -60,12 +71,17 @@ class RegistroTiempoRepositorio:
         return [self._fila_a_registro(f) for f in filas]
 
     def actualizar(self, registro):
-        with obtener_conexion() as conn:
-            cur = conn.execute(
-                """UPDATE registro_tiempo SET proyecto_id = ?, horas = ?, fecha = ?
-                   WHERE id = ?""",
-                (registro.proyecto_id, registro.horas, registro.fecha.isoformat(), registro.id),
-            )
+        try:
+            with obtener_conexion() as conn:
+                cur = conn.execute(
+                    """UPDATE registro_tiempo SET proyecto_id = ?, horas = ?, fecha = ?
+                       WHERE id = ?""",
+                    (registro.proyecto_id, registro.horas, registro.fecha.isoformat(), registro.id),
+                )
+        except sqlite3.IntegrityError as e:
+            if es_llave_foranea(e):
+                raise ReferenciaInexistente(f"El proyecto {registro.proyecto_id} no existe") from e
+            raise
         return cur.rowcount
 
     def eliminar(self, id):
