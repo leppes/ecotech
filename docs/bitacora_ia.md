@@ -7,7 +7,7 @@ qué **decidió el equipo** — acepto / modifico / descarto — con criterio t�
 
 | Revisión | Cómo se revisó | Resultado |
 |---|---|---|
-| ¿Las consultas están parametrizadas? | Búsqueda en `infraestructura/` de `" +`, `' +`, `f"SELECT`, `f"INSERT`, `f"UPDATE`, `f"DELETE`, `%s" %`, `.format(` y `execute(f`; prueba de inyección con `' OR '1'='1` en `main.py` | Las 12 pruebas de inyección devuelven `[]`, `None` o `False`. La primera búsqueda dio «sin coincidencias», pero tenía un hueco: no detectó `execute(_SELECT_BASE + " WHERE e.rut = ?", ...)`, que la propia IA había escrito en `EmpleadoRepositorio.obtener` (ver registro del 2026-10-21). |
+| ¿Las consultas están parametrizadas? | Búsqueda en `infraestructura/` de `" +`, `' +`, `f"SELECT`, `f"INSERT`, `f"UPDATE`, `f"DELETE`, `%s" %`, `.format(` y `execute(f`; prueba de inyección buscando `' OR '1'='1` en el menú de `main.py` | La búsqueda con el payload no devuelve resultados (antes se probó con 12 llamadas automáticas en una demo, ya eliminada). La primera búsqueda dio «sin coincidencias», pero tenía un hueco: no detectó `execute(_SELECT_BASE + " WHERE e.rut = ?", ...)`, que la propia IA había escrito en `EmpleadoRepositorio.obtener` (ver registro del 2026-10-21). |
 | ¿Captura demasiado? | Búsqueda de `except Exception`, `except:` y `except sqlite3.Error` | Sin coincidencias. Antes, `conexion.py` capturaba `sqlite3.Error` completo y un RUT duplicado salía como "No se pudo operar sobre la base"; se cambió por capturas específicas. |
 | ¿Usa librerías que existen? | `requirements.txt` revisado en PyPI e instalado en un entorno limpio | `python-dotenv` existe (pypi.org/project/python-dotenv). `sqlite3` es de la biblioteca estándar. |
 
