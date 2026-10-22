@@ -129,6 +129,18 @@ sigue marcando ✘.
 
 **Decisión del equipo:** *(completar por el equipo)*
 
+### 2026-10-22 · Claude Code · Dejar solo lo que pide la evaluación
+
+**Pedido:** dejar en el repositorio solo lo que pide la evaluación y dejar todo listo
+para la entrega.
+
+**Respuesta (resumen de lo que hizo):** se eliminó `docs/criterios.md` (guía de
+estudio que la evaluación no pide) y el README se acortó a una guía de ejecución
+rápida, como describe la plantilla del informe. Las explicaciones técnicas quedan
+en el informe.
+
+**Decisión del equipo:** *(completar por el equipo)*
+
 ## Fragmentos generados con IA (criterio I.19)
 
 Generados con Claude Code en las sesiones del 2026-10-16 y del 2026-10-21. El
@@ -143,7 +155,7 @@ tabla:
 | `infraestructura/*_repositorio.py` | Los bloques `try/except sqlite3.IntegrityError`. Las consultas SQL y los mappers son del equipo (C08) |
 | `interfaz/`, `main.py` (con `logging`) | Archivos completos |
 | `demo.py` (antes `main.py`) | Secciones «Prueba de conexión», «Encapsulamiento», «Errores de la base», «Transacción», la función `debe_fallar` y el uso de una base propia |
-| `requirements.txt`, `.env.example`, `docs/criterios.md` | Archivos completos |
-| `README.md` | Secciones nuevas de los pasos 1-3, manejo de errores, validación de entradas y transacciones |
+| `requirements.txt`, `.env.example` | Archivos completos |
+| `README.md` | Guía de ejecución, configuración y estructura. Las secciones de decisiones de diseño (C08), esquema (C07) y seguridad son del equipo |
 
 *(El equipo debe agregar aquí cualquier otro uso de IA, por ejemplo en la C07 y la C08.)*
