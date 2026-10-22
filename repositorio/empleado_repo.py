@@ -3,7 +3,7 @@ from datetime import date
 
 from dominio.empleado import Empleado
 from dominio.excepciones import ReferenciaInexistente, RutDuplicado
-from infraestructura.conexion import obtener_conexion
+from repositorio.conexion import obtener_conexion
 
 SELECT_EMPLEADO = """SELECT p.rut, p.nombre, e.fecha_ingreso, e.sueldo_base, e.departamento_id
                      FROM empleado e JOIN persona p ON p.rut = e.rut"""

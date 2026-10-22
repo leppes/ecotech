@@ -2,7 +2,7 @@ import sqlite3
 
 from dominio.proyecto import Proyecto
 from dominio.excepciones import EntidadEnUso, NombreDuplicado
-from infraestructura.conexion import obtener_conexion
+from repositorio.conexion import obtener_conexion
 
 
 class ProyectoRepositorio:
