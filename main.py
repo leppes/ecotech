@@ -7,7 +7,7 @@ from dominio.empleado import Empleado
 from dominio.excepciones import ErrorDeDominio
 from dominio.proyecto import Proyecto
 from dominio.registro_tiempo import RegistroTiempo
-from dominio.validaciones import validar_horas, validar_rut, validar_sueldo
+from dominio.validaciones import validar_dias, validar_horas, validar_rut, validar_sueldo
 from repositorio.conexion import ErrorDeConexion, inicializar_bd, probar_conexion
 from repositorio.departamento_repo import DepartamentoRepositorio
 from repositorio.empleado_repo import EmpleadoRepositorio
@@ -80,6 +80,10 @@ def a_sueldo(texto):
 
 def a_horas(texto):
     return validar_horas(a_decimal(texto))
+
+
+def a_dias(texto):
+    return validar_dias(a_entero(texto))
 
 
 class Menu(ABC):
@@ -161,7 +165,8 @@ class MenuEmpleados(Menu):
         return [("Registrar", self.registrar),
                 ("Listar / buscar por nombre", self.listar),
                 ("Actualizar", self.actualizar),
-                ("Eliminar", self.eliminar)]
+                ("Eliminar", self.eliminar),
+                ("Calcular sueldo proporcional", self.calcular_sueldo)]
 
     def _mostrar_departamentos(self):
         print("Departamentos disponibles:")
@@ -202,6 +207,15 @@ class MenuEmpleados(Menu):
         if not confirmar(f"¿Eliminar a {rut}? También se borran sus registros de horas"):
             return
         print("  ✔ Eliminado." if self._repo.eliminar(rut) else "  ✘ No hay un empleado con ese RUT.")
+
+    def calcular_sueldo(self):
+        empleado = self._repo.obtener(pedir("RUT", validar_rut))
+        if empleado is None:
+            print("  ✘ No hay un empleado con ese RUT.")
+            return
+        dias = pedir("Días trabajados en el mes (0 a 30)", a_dias)
+        print(f"  Antigüedad: {empleado.antiguedad()} años")
+        print(f"  Sueldo proporcional: ${empleado.calcular_sueldo_proporcional(dias)}")
 
 
 class MenuRegistros(Menu):

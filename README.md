@@ -39,7 +39,7 @@ ecotech/
 ├── dominio/                     # Clases del negocio (POO, sin SQL)
 │   ├── __init__.py
 │   ├── persona.py
-│   ├── empleado.py              # Empleado hereda de Persona
+│   ├── empleado.py              # Empleado(Persona): antigüedad y sueldo proporcional
 │   ├── departamento.py
 │   ├── proyecto.py
 │   ├── registro_tiempo.py

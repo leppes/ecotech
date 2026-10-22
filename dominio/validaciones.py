@@ -27,6 +27,12 @@ def validar_sueldo(valor):
     return valor
 
 
+def validar_dias(valor):
+    if not isinstance(valor, int) or valor < 0 or valor > 30:
+        raise DatoInvalido("Los días trabajados deben estar entre 0 y 30")
+    return valor
+
+
 def validar_horas(valor):
     if not isinstance(valor, (int, float)) or valor <= 0 or valor > 24:
         raise DatoInvalido("Las horas deben ser mayores que 0 y como máximo 24")
