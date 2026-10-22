@@ -2,10 +2,13 @@ import logging
 import os
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+RUTA_ESQUEMA = Path(__file__).resolve().parent.parent / "datos" / "schema.sql"
 
 
 class ErrorDeConexion(Exception):
@@ -44,3 +47,8 @@ def probar_conexion():
         version = conn.execute("SELECT sqlite_version()").fetchone()[0]
         activas = conn.execute("PRAGMA foreign_keys").fetchone()[0]
     return version, activas == 1
+
+
+def inicializar_bd():
+    with obtener_conexion() as conn:
+        conn.executescript(RUTA_ESQUEMA.read_text(encoding="utf-8"))

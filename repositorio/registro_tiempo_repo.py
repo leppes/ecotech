@@ -3,7 +3,7 @@ from datetime import date
 
 from dominio.excepciones import ReferenciaInexistente
 from dominio.registro_tiempo import RegistroTiempo
-from infraestructura.conexion import obtener_conexion
+from repositorio.conexion import obtener_conexion
 
 
 class RegistroTiempoRepositorio:

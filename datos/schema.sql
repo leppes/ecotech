@@ -1,4 +1,4 @@
--- db/01_esquema.sql  (SQLite)
+-- datos/schema.sql  (SQLite)
 -- Repetible: corre sobre una base vacía y también dos veces seguidas (IF NOT EXISTS).
 -- Orden: primero las tablas a las que otras apuntan.
 
