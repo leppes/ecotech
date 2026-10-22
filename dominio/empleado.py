@@ -1,7 +1,7 @@
 from datetime import date
 
 from dominio.persona import Persona
-from dominio.validaciones import validar_fecha, validar_id, validar_sueldo
+from dominio.validaciones import validar_dias, validar_fecha, validar_id, validar_sueldo
 
 
 class Empleado(Persona):
@@ -38,6 +38,17 @@ class Empleado(Persona):
             self._departamento_id = None
         else:
             self._departamento_id = validar_id(valor, "id del departamento")
+
+    def antiguedad(self):
+        hoy = date.today()
+        anios = hoy.year - self.fecha_ingreso.year
+        if (hoy.month, hoy.day) < (self.fecha_ingreso.month, self.fecha_ingreso.day):
+            anios = anios - 1
+        return anios
+
+    def calcular_sueldo_proporcional(self, dias_trabajados):
+        dias = validar_dias(dias_trabajados)
+        return round(self.sueldo_base * dias / 30)
 
     def __str__(self):
         texto = super().__str__()
