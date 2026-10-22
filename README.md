@@ -14,11 +14,9 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env            # (Mac/Linux: cp) — con SQLite funciona sin editarlo
 python main.py                    # la aplicación: menú por consola
-python demo.py                    # demo automática: prueba cada regla y marca ✔ o ✘
 ```
 
 `main.py` hace la prueba de conexión, crea las tablas si no existen y abre el menú.
-`demo.py` usa su propia base (`ecotech_demo.db`) para no borrar los datos del menú.
 
 ## Configuración (.env)
 
@@ -47,7 +45,7 @@ dominio/                         # Clases del negocio. No saben SQL.
   excepciones.py                 # Excepciones propias del dominio
 infraestructura/                 # Lo único que habla con la base.
   conexion.py                    # Conexión, commit/rollback y prueba de conexión
-  esquema.py                     # crear_tablas() · vaciar_tablas()
+  esquema.py                     # crear_tablas()
   empleado_repositorio.py        # CRUD parametrizado de cada entidad
   departamento_repositorio.py
   proyecto_repositorio.py
@@ -58,7 +56,6 @@ interfaz/                        # Lo único que habla con el usuario.
 docs/
   bitacora_ia.md                 # Bitácora de uso crítico de IA
 main.py                          # La aplicación
-demo.py                          # Demo automática y prueba de inyección
 .env.example                     # Variables a configurar (sin credenciales)
 requirements.txt
 ```
@@ -83,7 +80,7 @@ requirements.txt
 
 ## Seguridad: prueba de inyección
 
-Todos los métodos que reciben datos se probaron con el payload `' OR '1'='1`:
-devuelven `[]`, `None` o `False`, nunca la tabla completa ni un error de SQL.
+En el menú, **Empleados → Listar / buscar por nombre** con el texto `' OR '1'='1`
+no devuelve resultados: el valor se trata como texto, nunca como parte del SQL.
 Ninguna consulta se arma concatenando valores: los filtros solo agregan **texto fijo**
 con su `?`, y los valores van siempre en la lista de parámetros.

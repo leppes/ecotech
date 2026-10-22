@@ -141,6 +141,18 @@ en el informe.
 
 **Decisión del equipo:** *(completar por el equipo)*
 
+### 2026-10-22 · Claude Code · Eliminar demo.py
+
+**Pedido:** eliminar `demo.py`, porque la evaluación no lo pide.
+
+**Respuesta (resumen de lo que hizo):** se eliminó `demo.py` y la función
+`vaciar_tablas()`, que solo usaba la demo. Las pruebas que hacía la demo se
+muestran ahora desde el menú de `main.py`: la búsqueda con `' OR '1'='1` no
+devuelve resultados, y al guardar un empleado con un departamento que no existe,
+el mismo RUT se puede guardar después (el rollback funcionó).
+
+**Decisión del equipo:** *(completar por el equipo)*
+
 ## Fragmentos generados con IA (criterio I.19)
 
 Generados con Claude Code en las sesiones del 2026-10-16 y del 2026-10-21. El
@@ -154,7 +166,6 @@ tabla:
 | `infraestructura/conexion.py` | `commit()`/`rollback()`, captura de `OperationalError` con mensaje genérico y `logging`, `probar_conexion()`, validación de `DB_MOTOR` |
 | `infraestructura/*_repositorio.py` | Los bloques `try/except sqlite3.IntegrityError`. Las consultas SQL y los mappers son del equipo (C08) |
 | `interfaz/`, `main.py` (con `logging`) | Archivos completos |
-| `demo.py` (antes `main.py`) | Secciones «Prueba de conexión», «Encapsulamiento», «Errores de la base», «Transacción», la función `debe_fallar` y el uso de una base propia |
 | `requirements.txt`, `.env.example` | Archivos completos |
 | `README.md` | Guía de ejecución, configuración y estructura. Las secciones de decisiones de diseño (C08), esquema (C07) y seguridad son del equipo |
 
